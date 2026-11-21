@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Globo Logístico</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000814; font-family: Arial, sans-serif; color: #fff; overflow: hidden; }
+  #globo { position: absolute; inset: 0; }
+  #painel { position: absolute; top: 20px; left: 20px; width: 340px; max-width: calc(100% - 40px); background: rgba(0,20,50,0.82); border: 1px solid #1e90ff; border-radius: 12px; padding: 18px; z-index: 10; }
+  #painel h1 { font-size: 15px; margin: 0 0 4px 0; color: #7fc4ff; text-transform: uppercase; }
+  #ano { font-size: 54px; font-weight: bold; margin: 0; line-height: 1; }
+  #titulo { font-size: 18px; font-weight: bold; margin: 8px 0 6px 0; color: #ffd166; }
+  #texto { font-size: 14px; line-height: 1.45; margin: 0 0 12px 0; }
+  .metricas { display: flex; gap: 8px; }
+  .metrica { flex: 1; background: rgba(30,144,255,0.18); border-radius: 8px; padding: 8px; text-align: center; }
+  .metrica b { display: block; font-size: 20px; color: #4dffb8; }
+  .metrica span { font-size: 11px; color: #cde; }
+  #controles { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 640px; max-width: calc(100% - 40px); background: rgba(0,20,50,0.82); border: 1px solid #1e90ff; border-radius: 12px; padding: 12px 16px; z-index: 10; display: flex; align-items: center; gap: 14px; }
+  button { background: #1e90ff; color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font-size: 15px; cursor: pointer; }
+  input[type=range] { flex: 1; }
+  #rotulo { font-size: 13px; min-width: 50px; text-align: right; }
+</style>
+</head>
+<body>
+<div id="globo"></div>
+
+<div id="painel">
+  <h1>NovaTech Eletrônicos</h1>
+  <p id="ano">2026</p>
+  <p id="titulo"></p>
+  <p id="texto"></p>
+  <div class="metricas">
+    <div class="metrica"><b id="m-custo"></b><span>custo logístico</span></div>
+    <div class="metrica"><b id="m-co2"></b><span>emissões de CO2</span></div>
+    <div class="metrica"><b id="m-prazo"></b><span>prazo de entrega</span></div>
+  </div>
+</div>
+
+<div id="controles">
+  <button id="btn">Pausar</button>
+  <input type="range" id="linha" min="0" max="9" value="0" step="1">
+  <span id="rotulo">2026</span>
+</div>
+
+<script src="https://unpkg.com/globe.gl"></script>
+<script>
+const C = {
+  shenzhen: { nome: 'Shenzhen', lat: 22.54, lng: 114.06 },
+  xangai: { nome: 'Xangai', lat: 31.23, lng: 121.47 },
+  saopaulo: { nome: 'São Paulo', lat: -23.55, lng: -46.63 },
+  manaus: { nome: 'Manaus', lat: -3.12, lng: -60.02 },
+  losangeles: { nome: 'Los Angeles', lat: 34.05, lng: -118.24 },
+  houston: { nome: 'Houston', lat: 29.76, lng: -95.37 },
+  roterda: { nome: 'Roterdã', lat: 51.92, lng: 4.48 },
+  mumbai: { nome: 'Mumbai', lat: 19.07, lng: 72.88 },
+  mexico: { nome: 'Monterrey', lat: 25.68, lng: -100.31 },
+  singapura: { nome: 'Singapura', lat: 1.35, lng: 103.82 }
+};
+
+const ANOS = [
+  { ano: 2026, titulo: 'Ponto de partida', texto: 'Toda a produção está concentrada na China e segue por poucas rotas oceânicas longas até Brasil e Estados Unidos. Eficiência baixa e muita dependência.', custo: '100%', co2: '100%', prazo: '45 dias',
+    rotas: [['shenzhen','losangeles',1.0], ['shenzhen','saopaulo',0.8], ['xangai','roterda',0.8]] },
+  { ano: 2027, titulo: 'Mapeando os gargalos', texto: 'Usamos dados em tempo real para achar portos congestionados e rotas com atrasos. Primeiro hub de consolidação em Singapura.', custo: '97%', co2: '98%', prazo: '42 dias',
+    rotas: [['shenzhen','singapura',0.7], ['singapura','losangeles',1.0], ['singapura','saopaulo',0.8], ['xangai','roterda',0.8]] },
+  { ano: 2028, titulo: 'Consolidação de cargas', texto: 'Menos navios, mais cheios. Agrupar cargas reduz viagens e corta custo por unidade enviada.', custo: '92%', co2: '93%', prazo: '39 dias',
+    rotas: [['shenzhen','singapura',1.0], ['singapura','losangeles',1.0], ['singapura','saopaulo',0.9], ['singapura','roterda',0.9], ['singapura','mumbai',0.5]] },
+  { ano: 2029, titulo: 'Montagem perto do cliente', texto: 'Enviamos componentes e montamos o produto final perto de onde ele é vendido. Nasce a primeira fábrica de montagem em Manaus.', custo: '86%', co2: '85%', prazo: '31 dias',
+    rotas: [['shenzhen','singapura',1.0], ['singapura','manaus',0.8], ['manaus','saopaulo',0.7], ['singapura','losangeles',0.8], ['singapura','roterda',0.8]] },
+  { ano: 2030, titulo: 'América do Norte regionalizada', texto: 'Nova planta em Monterrey atende os Estados Unidos por terra, sem depender do transporte oceânico longo.', custo: '80%', co2: '76%', prazo: '24 dias',
+    rotas: [['singapura','manaus',0.9], ['manaus','saopaulo',0.8], ['singapura','mexico',0.8], ['mexico','houston',1.0], ['mexico','losangeles',0.8], ['singapura','roterda',0.8]] },
+  { ano: 2031, titulo: 'Logística preditiva', texto: 'Inteligência artificial prevê demanda e antecipa estoques. Menos produto parado e menos envio urgente de avião.', custo: '75%', co2: '68%', prazo: '20 dias',
+    rotas: [['singapura','manaus',0.9], ['manaus','saopaulo',0.9], ['mexico','houston',1.0], ['mexico','losangeles',0.9], ['roterda','mumbai',0.6], ['singapura','roterda',0.8]] },
+  { ano: 2032, titulo: 'Frota mais limpa', texto: 'Navios com combustível de baixa emissão e trens elétricos nas rotas terrestres derrubam a pegada de carbono.', custo: '72%', co2: '52%', prazo: '18 dias',
+    rotas: [['singapura','manaus',1.0], ['manaus','saopaulo',0.9], ['mexico','houston',1.0], ['mexico','losangeles',0.9], ['roterda','mumbai',0.7], ['singapura','roterda',0.9]] },
+  { ano: 2033, titulo: 'Rede multipolar', texto: 'Três polos regionais, Ásia, Américas e Europa, produzem e distribuem quase de forma independente. Se um polo falha, os outros cobrem.', custo: '68%', co2: '44%', prazo: '14 dias',
+    rotas: [['singapura','mumbai',0.8], ['mumbai','roterda',0.8], ['manaus','saopaulo',1.0], ['mexico','houston',1.0], ['mexico','losangeles',1.0], ['saopaulo','houston',0.6]] },
+  { ano: 2034, titulo: 'Logística circular', texto: 'Aparelhos usados voltam pela mesma rede para reciclagem e reaproveitamento de componentes, reduzindo a necessidade de matéria-prima nova.', custo: '65%', co2: '38%', prazo: '12 dias',
+    rotas: [['singapura','mumbai',0.8], ['mumbai','roterda',0.8], ['manaus','saopaulo',1.0], ['mexico','houston',1.0], ['houston','mexico',0.6], ['saopaulo','manaus',0.6], ['roterda','mumbai',0.6]] },
+  { ano: 2035, titulo: 'Eficiência em macro escala', texto: 'Rede global enxuta, regional, preditiva e circular. Custo 35% menor, emissões 65% menores e entrega em menos de duas semanas.', custo: '65%', co2: '35%', prazo: '10 dias',
+    rotas: [['singapura','mumbai',0.9], ['mumbai','roterda',0.9], ['manaus','saopaulo',1.0], ['mexico','houston',1.0], ['mexico','losangeles',1.0], ['saopaulo','houston',0.7], ['houston','mexico',0.6], ['roterda','mumbai',0.6]] }
+];
+const globo = Globe()(document.getElementById('globo'))
+  .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
+  .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+  .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
+  .pointLat(d => d.lat).pointLng(d => d.lng)
+  .pointColor(() => '#ffd166').pointAltitude(0.02).pointRadius(0.45)
+  .pointLabel(d => d.nome)
+  .arcStartLat(d => C[d.o].lat).arcStartLng(d => C[d.o].lng)
+  .arcEndLat(d => C[d.d].lat).arcEndLng(d => C[d.d].lng)
+  .arcColor(() => ['#4dffb8', '#1e90ff'])
+  .arcStroke(d => d.esp * 0.8)
+  .arcDashLength(0.4).arcDashGap(0.2).arcDashAnimateTime(1800)
+  .arcAltitudeAutoScale(0.4);
+
+globo.pointsData(Object.values(C));
+globo.controls().autoRotate = true;
+globo.controls().autoRotateSpeed = 0.5;
+globo.pointOfView({ lat: 10, lng: -20, altitude: 2.4 });
+
+let indice = 0;
+let tocando = true;
+let relogio = null;
+
+function mostrar(i) {
+  indice = i;
+  const a = ANOS[i];
+  document.getElementById('ano').textContent = a.ano;
+  document.getElementById('titulo').textContent = a.titulo;
+  document.getElementById('texto').textContent = a.texto;
+  document.getElementById('m-custo').textContent = a.custo;
+  document.getElementById('m-co2').textContent = a.co2;
+  document.getElementById('m-prazo').textContent = a.prazo;
+  document.getElementById('linha').value = i;
+  document.getElementById('rotulo').textContent = a.ano;
+  globo.arcsData(a.rotas.map(r => ({ o: r[0], d: r[1], esp: r[2] })));
+}
+
+function iniciar() {
+  clearInterval(relogio);
+  relogio = setInterval(() => {
+    mostrar((indice + 1) % ANOS.length);
+  }, 7000);
+}
+
+document.getElementById('btn').onclick = () => {
+  tocando = !tocando;
+  document.getElementById('btn').textContent = tocando ? 'Pausar' : 'Continuar';
+  if (tocando) { iniciar(); } else { clearInterval(relogio); }
+};
+
+document.getElementById('linha').oninput = (e) => {
+  mostrar(parseInt(e.target.value));
+  if (tocando) { iniciar(); }
+};
+
+mostrar(0);
+iniciar();
+</script>
+</body>
+</html> 
