@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Detalhe do marco · Globo Logístico</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #000814; font-family: Arial, sans-serif; color: #fff; min-height: 100vh; }
+  .topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #12335c; flex-wrap: wrap; }
+  .topo a.voltar { color: #7fc4ff; text-decoration: none; font-size: 14px; }
+  .topo .marca { color: #7fc4ff; text-transform: uppercase; font-size: 13px; }
+  .anos { display: flex; gap: 6px; padding: 12px 20px; overflow-x: auto; border-bottom: 1px solid #12335c; }
+  .anos a { flex: 0 0 auto; padding: 8px 12px; border-radius: 8px; background: rgba(30,144,255,0.15); color: #cde; text-decoration: none; font-size: 14px; }
+  .anos a.ativo { background: #1e90ff; color: #fff; font-weight: bold; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 20px 40px; }
+  .ano { font-size: 64px; font-weight: bold; margin: 0; line-height: 1; }
+  .titulo { font-size: 22px; font-weight: bold; color: #ffd166; margin: 8px 0 18px; }
+  .metricas { display: flex; gap: 8px; margin-bottom: 20px; }
+  .metrica { flex: 1; background: rgba(30,144,255,0.18); border-radius: 8px; padding: 10px; text-align: center; }
+  .metrica b { display: block; font-size: 20px; color: #4dffb8; }
+  .metrica span { font-size: 11px; color: #cde; }
+  .bloco { background: rgba(0,20,50,0.82); border: 1px solid #1e90ff; border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; }
+  .bloco h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; color: #7fc4ff; letter-spacing: 0.04em; }
+  .bloco p { margin: 0; font-size: 15px; line-height: 1.55; }
+  .bloco.ia { border-color: #4dffb8; }
+  .bloco.ia h2 { color: #4dffb8; }
+  .destaque { background: rgba(255,209,102,0.12); border: 1px solid #ffd166; border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; color: #ffd166; font-size: 15px; }
+  .nav { display: flex; justify-content: space-between; gap: 10px; }
+  .nav a { background: #1e90ff; color: #fff; text-decoration: none; border-radius: 8px; padding: 10px 18px; font-size: 15px; }
+  .nav a.off { visibility: hidden; }
+</style>
+</head>
+<body>
+<div class="topo">
+  <a class="voltar" id="voltar" href="index.html">← Voltar ao globo</a>
+  <span class="marca">NovaTech Eletrônicos</span>
+</div>
+<nav class="anos" id="anos"></nav>
+
+<main>
+  <p class="ano" id="ano"></p>
+  <p class="titulo" id="titulo"></p>
+
+  <div class="metricas">
+    <div class="metrica"><b id="m-custo"></b><span>custo logístico</span></div>
+    <div class="metrica"><b id="m-co2"></b><span>emissões de CO2</span></div>
+    <div class="metrica"><b id="m-prazo"></b><span>prazo de entrega</span></div>
+  </div>
+
+  <div class="bloco"><h2>O que aconteceu</h2><p id="aconteceu"></p></div>
+  <div class="bloco ia"><h2>Como a IA influenciou</h2><p id="influencia"></p></div>
+  <div class="bloco ia"><h2>O que a IA fez</h2><p id="fez"></p></div>
+  <div class="bloco ia"><h2>Como a IA ajudou</h2><p id="ajudou"></p></div>
+  <div class="destaque" id="destaque"></div>
+
+  <div class="nav">
+    <a id="ant" href="#">← Ano anterior</a>
+    <a id="prox" href="#">Próximo ano →</a>
+  </div>
+</main>
+
+<script src="dados-ia.js"></script>
+<script>
+const anos = Object.keys(DETALHES).map(Number).sort((a, b) => a - b);
+let ano = parseInt(new URLSearchParams(location.search).get('ano'));
+if (!DETALHES[ano]) ano = anos[0];
+const d = DETALHES[ano];
+const pos = anos.indexOf(ano);
+
+document.title = ano + ' · ' + d.titulo + ' · Globo Logístico';
+const set = (id, v) => { document.getElementById(id).textContent = v; };
+set('ano', ano); set('titulo', d.titulo);
+set('m-custo', d.custo); set('m-co2', d.co2); set('m-prazo', d.prazo);
+set('aconteceu', d.aconteceu); set('influencia', d.influencia);
+set('fez', d.fez); set('ajudou', d.ajudou); set('destaque', d.destaque);
+
+document.getElementById('voltar').href = 'index.html?ano=' + ano;
+
+const nav = document.getElementById('anos');
+anos.forEach(a => {
+  const l = document.createElement('a');
+  l.href = 'detalhe.html?ano=' + a;
+  l.textContent = a;
+  if (a === ano) l.className = 'ativo';
+  nav.appendChild(l);
+});
+
+const ant = document.getElementById('ant');
+const prox = document.getElementById('prox');
+if (pos > 0) ant.href = 'detalhe.html?ano=' + anos[pos - 1]; else ant.className = 'off';
+if (pos < anos.length - 1) prox.href = 'detalhe.html?ano=' + anos[pos + 1]; else prox.className = 'off';
+</script>
+</body>
+</html>
