@@ -16,6 +16,8 @@
   .metrica { flex: 1; background: rgba(30,144,255,0.18); border-radius: 8px; padding: 8px; text-align: center; }
   .metrica b { display: block; font-size: 20px; color: #4dffb8; }
   .metrica span { font-size: 11px; color: #cde; }
+  .mais { display: block; margin-top: 12px; padding: 10px; text-align: center; border: 1px solid #4dffb8; border-radius: 8px; color: #4dffb8; text-decoration: none; font-size: 14px; }
+  .mais:hover { background: rgba(77,255,184,0.12); }
   #controles { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 640px; max-width: calc(100% - 40px); background: rgba(0,20,50,0.82); border: 1px solid #1e90ff; border-radius: 12px; padding: 12px 16px; z-index: 10; display: flex; align-items: center; gap: 14px; }
   button { background: #1e90ff; color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font-size: 15px; cursor: pointer; }
   input[type=range] { flex: 1; }
@@ -35,6 +37,7 @@
     <div class="metrica"><b id="m-co2"></b><span>emissões de CO2</span></div>
     <div class="metrica"><b id="m-prazo"></b><span>prazo de entrega</span></div>
   </div>
+  <a id="detalhes" class="mais" href="detalhe.html?ano=2026">Ver o que a IA fez neste ano →</a>
 </div>
 
 <div id="controles">
@@ -114,6 +117,7 @@ function mostrar(i) {
   document.getElementById('m-prazo').textContent = a.prazo;
   document.getElementById('linha').value = i;
   document.getElementById('rotulo').textContent = a.ano;
+  document.getElementById('detalhes').href = 'detalhe.html?ano=' + a.ano;
   globo.arcsData(a.rotas.map(r => ({ o: r[0], d: r[1], esp: r[2] })));
 }
 
@@ -135,8 +139,11 @@ document.getElementById('linha').oninput = (e) => {
   if (tocando) { iniciar(); }
 };
 
-mostrar(0);
+// Se voltar da página de detalhe, começa no ano que a pessoa estava vendo
+const anoUrl = parseInt(new URLSearchParams(location.search).get('ano'));
+const inicio = ANOS.findIndex(a => a.ano === anoUrl);
+mostrar(inicio >= 0 ? inicio : 0);
 iniciar();
 </script>
 </body>
-</html> 
+</html>
