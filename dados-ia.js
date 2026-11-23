@@ -1,5 +1,3 @@
-// Conteúdo da página de detalhe. Edite os textos à vontade.
-// Cada ano tem: o que aconteceu, como a IA influenciou, o que a IA fez, como ajudou, e um destaque.
 const DETALHES = {
   2026: {
     titulo: 'Ponto de partida',
