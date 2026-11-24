@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador Logístico com IA</title>
+<style>
+body { margin: 0; background: #000814; color: #fff; font-family: Arial, sans-serif; }
+main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 60px; }
+h1 { font-size: 26px; margin: 0 0 6px; }
+h2 { font-size: 18px; margin: 0 0 10px; color: #ffd166; }
+p, label { font-size: 14px; line-height: 1.5; color: #cde; }
+section { background: rgba(0,20,50,0.85); border: 1px solid #1e90ff; border-radius: 12px; padding: 18px; margin-top: 18px; }
+button { background: #1e90ff; color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font-size: 15px; cursor: pointer; margin-right: 8px; }
+button:focus-visible, input:focus-visible { outline: 3px solid #ffd166; outline-offset: 2px; }
+input[type=number] { width: 90px; background: #021; color: #fff; border: 1px solid #1e90ff; border-radius: 6px; padding: 6px; }
+.linha { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.card { border: 1px solid #1e3a5f; border-radius: 10px; padding: 12px; }
+.card b { display: block; font-size: 22px; }
+.sem { color: #ff9f6b; } .com { color: #4dffb8; }
+.tabela { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 13px; }
+th, td { padding: 7px 9px; text-align: right; border-bottom: 1px solid #1e3a5f; }
+th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+th { color: #9fb3c3; }
+#erro { color: #ff6b6b; }
+.nota { font-size: 12px; color: #9fb3c3; }
+</style>
+</head>
+<body>
+<main>
+<h1>Simulador Logístico com IA</h1>
+<p>Suba o CSV com as rotas da empresa. A IA testa os modais de cada rota e mostra o antes e o depois em custo, CO2 e prazo.</p>
+
+<section>
+<h2>1. Dados da empresa</h2>
+<p>Colunas do CSV: origem, destino, modal, distancia_km, toneladas, custo, dias. Modais aceitos: aviao, caminhao, trem, navio.</p>
+<div class="linha">
+<input type="file" id="arquivo" accept=".csv" aria-label="Arquivo CSV">
+<button id="exemplo" type="button">Usar empresa de exemplo</button>
+<button id="baixar" type="button">Baixar CSV de modelo</button>
+</div>
+<p id="erro" role="alert"></p>
+</section>
+
+<section>
+<h2>2. O que a IA deve priorizar</h2>
+<div class="linha">
+<label>Peso do custo <input type="number" id="wc" value="40" min="0" max="100"></label>
+<label>Peso do CO2 <input type="number" id="we" value="40" min="0" max="100"></label>
+<label>Peso do prazo <input type="number" id="wp" value="20" min="0" max="100"></label>
+<label>Prazo máximo por rota (dias) <input type="number" id="pmax" value="30" min="1"></label>
+</div>
+<button id="rodar" type="button">Rodar a IA</button>
+</section>
+
+<section id="saida" hidden>
+<h2>3. Resultado: sem IA e com IA</h2>
+<div class="cards" id="cards"></div>
+<h2 style="margin-top:18px">Rota por rota</h2>
+<div class="tabela"><table id="tabela"></table></div>
+</section>
+
+<p class="nota">Fatores de emissão em g CO2e por tonelada-km (GLEC Framework v3.2, well-to-wheel): avião 936, caminhão 100, trem 18,4, navio 5,2. Custo por tonelada-km e velocidade por modal são valores de referência editáveis no código (constante MODAIS).</p>
+</main>
+<script>
+// Fatores GLEC em g CO2e por tonelada-km. Custo (R$ por t-km) e km por dia são valores de referência editáveis.
+const MODAIS = {
+aviao: { nome: 'Avião', g: 936, custo: 4.50, kmdia: 6000 },
+caminhao: { nome: 'Caminhão', g: 100, custo: 0.35, kmdia: 600 },
+trem: { nome: 'Trem', g: 18.4, custo: 0.20, kmdia: 400 },
+navio: { nome: 'Navio', g: 5.2, custo: 0.08, kmdia: 650 }
+};
+const $ = id => document.getElementById(id);
+const fmt = (n, d = 0) => n.toLocaleString('pt-BR', { maximumFractionDigits: d });
+let ROTAS = [];
+
+const EXEMPLO = `origem,destino,modal,distancia_km,toneladas,custo,dias
+Xangai,Roterdã,aviao,9000,40,1620000,2
+Shenzhen,Los Angeles,aviao,11700,60,3160000,2
+Singapura,São Paulo,navio,15500,300,372000,28
+Manaus,São Paulo,caminhao,2700,120,113400,5
+Monterrey,Houston,caminhao,900,150,47250,2
+Mumbai,Roterdã,aviao,6300,30,850000,1`;
+
+function lerCSV(txt) {
+const linhas = txt.trim().split(/\r?\n/).filter(l => l.trim());
+const cab = linhas.shift().split(',').map(c => c.trim().toLowerCase());
+const need = ['origem','destino','modal','distancia_km','toneladas','custo','dias'];
+const falta = need.filter(c => !cab.includes(c));
+if (falta.length) throw new Error('Faltam colunas no CSV: ' + falta.join(', '));
+return linhas.map((l, i) => {
+const v = l.split(','), o = {};
+cab.forEach((c, k) => o[c] = (v[k] || '').trim());
+o.modal = o.modal.toLowerCase();
+if (!MODAIS[o.modal]) throw new Error('Linha ' + (i + 2) + ': modal "' + o.modal + '" não existe. Use aviao, caminhao, trem ou navio.');
+['distancia_km','toneladas','custo','dias'].forEach(c => {
+o[c] = parseFloat(o[c]);
+if (isNaN(o[c])) throw new Error('Linha ' + (i + 2) + ': valor inválido em ' + c);
+});
+return o;
+});
+}
+
+function carregar(txt) {
+try { ROTAS = lerCSV(txt); $('erro').textContent = ''; $('rodar').focus(); }
+catch (e) { ROTAS = []; $('erro').textContent = e.message; }
+}
+
+function co2(modal, km, t) { return MODAIS[modal].g * km * t / 1e6; } // toneladas de CO2
+function custoDe(modal, km, t) { return MODAIS[modal].custo * km * t; }
+function diasDe(modal, km) { return Math.max(1, Math.ceil(km / MODAIS[modal].kmdia)); }
+
+// A IA: para cada rota testa todos os modais, descarta os que estouram o prazo
+// e escolhe o de menor nota ponderada (custo, CO2 e prazo normalizados).
+function otimizar(r, w, pmax) {
+const cand = Object.keys(MODAIS).map(m => ({
+modal: m, custo: custoDe(m, r.distancia_km, r.toneladas),
+co2: co2(m, r.distancia_km, r.toneladas), dias: diasDe(m, r.distancia_km)
+}));
+const atual = { modal: r.modal, custo: r.custo, co2: co2(r.modal, r.distancia_km, r.toneladas), dias: r.dias };
+let ok = cand.filter(c => c.dias <= pmax);
+if (!ok.length) ok = [cand.sort((a, b) => a.dias - b.dias)[0]];
+const max = k => Math.max(...ok.map(c => c[k]), atual[k]) || 1;
+const mc = max('custo'), me = max('co2'), mp = max('dias');
+const nota = c => w.c * c.custo / mc + w.e * c.co2 / me + w.p * c.dias / mp;
+const melhor = ok.sort((a, b) => nota(a) - nota(b))[0];
+return nota(melhor) < nota(atual) ? melhor : atual;
+}
+
+function rodar() {
+if (!ROTAS.length) { $('erro').textContent = 'Carregue um CSV ou use a empresa de exemplo.'; return; }
+const soma = +$('wc').value + +$('we').value + +$('wp').value || 1;
+const w = { c: $('wc').value / soma, e: $('we').value / soma, p: $('wp').value / soma };
+const pmax = +$('pmax').value;
+let A = { c: 0, e: 0, p: 0 }, D = { c: 0, e: 0, p: 0 }, linhas = '';
+ROTAS.forEach(r => {
+const ca = { custo: r.custo, co2: co2(r.modal, r.distancia_km, r.toneladas), dias: r.dias };
+const n = otimizar(r, w, pmax);
+A.c += ca.custo; A.e += ca.co2; A.p = Math.max(A.p, ca.dias);
+D.c += n.custo; D.e += n.co2; D.p = Math.max(D.p, n.dias);
+linhas += `<tr><td>${r.origem} → ${r.destino}</td><td>${MODAIS[r.modal].nome} → <b class="com">${MODAIS[n.modal].nome}</b></td>` +
+`<td class="sem">R$ ${fmt(ca.custo)}</td><td class="com">R$ ${fmt(n.custo)}</td>` +
+`<td class="sem">${fmt(ca.co2, 1)} t</td><td class="com">${fmt(n.co2, 1)} t</td>` +
+`<td class="sem">${ca.dias} d</td><td class="com">${n.dias} d</td></tr>`;
+});
+const pct = (a, d) => a ? Math.round((d - a) / a * 100) : 0;
+$('cards').innerHTML = [
+['Custo total', 'R$ ' + fmt(A.c), 'R$ ' + fmt(D.c), pct(A.c, D.c)],
+['Emissões de CO2', fmt(A.e, 1) + ' t', fmt(D.e, 1) + ' t', pct(A.e, D.e)],
+['Maior prazo de entrega', A.p + ' dias', D.p + ' dias', pct(A.p, D.p)]
+].map(c => `<div class="card">${c[0]}<b class="sem">${c[1]}</b>sem IA<b class="com">${c[2]}</b>com IA (${c[3] > 0 ? '+' : ''}${c[3]}%)</div>`).join('');
+$('tabela').innerHTML = '<tr><th>Rota</th><th>Modal</th><th>Custo sem IA</th><th>Custo com IA</th><th>CO2 sem IA</th><th>CO2 com IA</th><th>Prazo sem IA</th><th>Prazo com IA</th></tr>' + linhas;
+$('saida').hidden = false;
+$('saida').scrollIntoView({ behavior: 'smooth' });
+}
+
+$('arquivo').onchange = e => { const f = e.target.files[0]; if (f) f.text().then(carregar); };
+$('exemplo').onclick = () => carregar(EXEMPLO);
+$('baixar').onclick = () => {
+const a = document.createElement('a');
+a.href = URL.createObjectURL(new Blob([EXEMPLO], { type: 'text/csv' }));
+a.download = 'modelo-rotas.csv'; a.click();
+};
+$('rodar').onclick = rodar;
+</script>
+</body>
+</html>
