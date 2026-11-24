@@ -83,6 +83,7 @@ const ANOS = [
   { ano: 2035, titulo: 'Eficiência em macro escala', texto: 'Rede global enxuta, regional, preditiva e circular. Custo 35% menor, emissões 65% menores e entrega em menos de duas semanas.', custo: '65%', co2: '35%', prazo: '10 dias',
     rotas: [['singapura','mumbai',0.9], ['mumbai','roterda',0.9], ['manaus','saopaulo',1.0], ['mexico','houston',1.0], ['mexico','losangeles',1.0], ['saopaulo','houston',0.7], ['houston','mexico',0.6], ['roterda','mumbai',0.6]] }
 ];
+  window.GLOBO_IA_DADOS = ANOS;
 const globo = Globe()(document.getElementById('globo'))
   .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
   .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
