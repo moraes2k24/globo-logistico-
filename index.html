@@ -18,14 +18,34 @@
   .metrica span { font-size: 11px; color: #cde; }
   .mais { display: block; margin-top: 12px; padding: 10px; text-align: center; border: 1px solid #4dffb8; border-radius: 8px; color: #4dffb8; text-decoration: none; font-size: 14px; }
   .mais:hover { background: rgba(77,255,184,0.12); }
-  #controles { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 640px; max-width: calc(100% - 40px); background: rgba(0,20,50,0.82); border: 1px solid #1e90ff; border-radius: 12px; padding: 12px 16px; z-index: 10; display: flex; align-items: center; gap: 14px; }
+  #controles { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); width: 640px; max-width: calc(100% - 40px); background: rgba(0,20,50,0.82); border: 1px solid #1e90ff; border-radius: 12px; padding: 12px 16px; z-index: 10; display: flex; align-items: center; gap: 14px; box-sizing: border-box; }
   button { background: #1e90ff; color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font-size: 15px; cursor: pointer; }
   input[type=range] { flex: 1; }
   #rotulo { font-size: 13px; min-width: 50px; text-align: right; }
+
+  /* Seletor de idioma */
+  #idiomas { position: absolute; top: 20px; right: 20px; z-index: 10; display: flex; gap: 6px; background: rgba(0,20,50,0.82); border: 1px solid #1e90ff; border-radius: 12px; padding: 6px; }
+  #idiomas button { background: transparent; padding: 8px 12px; font-size: 13px; color: #cde; }
+  #idiomas button.ativo { background: #1e90ff; color: #fff; }
+  #idiomas button:focus-visible { outline: 2px solid #4dffb8; outline-offset: 1px; }
+
+  /* Rótulos no globo */
+  .rot { position: absolute; pointer-events: none; white-space: nowrap; text-shadow: 0 0 4px #000, 0 0 8px #000, 0 1px 2px #000; }
+  .rot.continente { font-size: 20px; font-weight: bold; letter-spacing: 2px; color: rgba(255,255,255,0.9); transform: translate(-50%, -50%); }
+  .rot.estado { font-size: 11px; color: #bfe3ff; transform: translate(-50%, -50%); }
+  .rot.cidade, .rot.hub { font-size: 12px; color: #fff; transform: translate(9px, -50%); }
+  .rot.hub { font-size: 13px; font-weight: bold; color: #ffd166; }
+  .rot.cidade::before { content: ''; position: absolute; left: -9px; top: 50%; width: 5px; height: 5px; margin-top: -2.5px; border-radius: 50%; background: #fff; box-shadow: 0 0 4px #000; }
 </style>
 </head>
 <body>
 <div id="globo"></div>
+
+<div id="idiomas" role="group" aria-label="Idioma / Language / Idioma">
+  <button data-lang="pt">Português</button>
+  <button data-lang="en">English</button>
+  <button data-lang="es">Español</button>
+</div>
 
 <div id="painel">
   <h1>NovaTech Eletrônicos</h1>
@@ -33,11 +53,11 @@
   <p id="titulo"></p>
   <p id="texto"></p>
   <div class="metricas">
-    <div class="metrica"><b id="m-custo"></b><span>custo logístico</span></div>
-    <div class="metrica"><b id="m-co2"></b><span>emissões de CO2</span></div>
-    <div class="metrica"><b id="m-prazo"></b><span>prazo de entrega</span></div>
+    <div class="metrica"><b id="m-custo"></b><span id="l-custo"></span></div>
+    <div class="metrica"><b id="m-co2"></b><span id="l-co2"></span></div>
+    <div class="metrica"><b id="m-prazo"></b><span id="l-prazo"></span></div>
   </div>
-  <a id="detalhes" class="mais" href="detalhe.html?ano=2026">Ver o que a IA fez neste ano →</a>
+  <a id="detalhes" class="mais" href="detalhe.html?ano=2026"></a>
 </div>
 
 <div id="controles">
@@ -48,19 +68,127 @@
 
 <script src="https://unpkg.com/globe.gl"></script>
 <script>
-const C = {
-  shenzhen: { nome: 'Shenzhen', lat: 22.54, lng: 114.06 },
-  xangai: { nome: 'Xangai', lat: 31.23, lng: 121.47 },
-  saopaulo: { nome: 'São Paulo', lat: -23.55, lng: -46.63 },
-  manaus: { nome: 'Manaus', lat: -3.12, lng: -60.02 },
-  losangeles: { nome: 'Los Angeles', lat: 34.05, lng: -118.24 },
-  houston: { nome: 'Houston', lat: 29.76, lng: -95.37 },
-  roterda: { nome: 'Roterdã', lat: 51.92, lng: 4.48 },
-  mumbai: { nome: 'Mumbai', lat: 19.07, lng: 72.88 },
-  mexico: { nome: 'Monterrey', lat: 25.68, lng: -100.31 },
-  singapura: { nome: 'Singapura', lat: 1.35, lng: 103.82 }
+/* ============ IDIOMAS ============ */
+// Ordem em todos os nomes: [português, inglês, espanhol]
+const IDIOMAS = ['pt', 'en', 'es'];
+const HTML_LANG = { pt: 'pt-BR', en: 'en', es: 'es' };
+
+const UI = {
+  pt: { custo: 'custo logístico', co2: 'emissões de CO2', prazo: 'prazo de entrega', dias: 'dias', pausar: 'Pausar', continuar: 'Continuar', mais: 'Ver o que a IA fez neste ano →', titulo: 'Globo Logístico' },
+  en: { custo: 'logistics cost', co2: 'CO2 emissions', prazo: 'delivery time', dias: 'days', pausar: 'Pause', continuar: 'Resume', mais: 'See what AI did this year →', titulo: 'Logistics Globe' },
+  es: { custo: 'costo logístico', co2: 'emisiones de CO2', prazo: 'plazo de entrega', dias: 'días', pausar: 'Pausar', continuar: 'Continuar', mais: 'Ver qué hizo la IA este año →', titulo: 'Globo Logístico' }
 };
 
+// Títulos e textos de cada ano (português fica em ANOS, abaixo)
+const TR = {
+  en: [
+    ['Starting point', 'All production is concentrated in China and travels along a few long ocean routes to Brazil and the United States. Low efficiency and heavy dependence.'],
+    ['Mapping the bottlenecks', 'We use real-time data to find congested ports and delayed routes. First consolidation hub in Singapore.'],
+    ['Cargo consolidation', 'Fewer ships, fuller ships. Grouping cargo cuts trips and lowers the cost per unit shipped.'],
+    ['Assembly close to the customer', 'We ship components and assemble the final product near where it is sold. The first assembly plant is born in Manaus.'],
+    ['Regionalized North America', 'A new plant in Monterrey serves the United States by land, without relying on long ocean shipping.'],
+    ['Predictive logistics', 'Artificial intelligence forecasts demand and stocks up ahead of time. Less idle product and fewer urgent air shipments.'],
+    ['A cleaner fleet', 'Low-emission fuel ships and electric trains on land routes sharply cut the carbon footprint.'],
+    ['Multipolar network', 'Three regional hubs, Asia, the Americas and Europe, produce and distribute almost independently. If one fails, the others cover.'],
+    ['Circular logistics', 'Used devices return through the same network for recycling and component reuse, reducing the need for new raw materials.'],
+    ['Efficiency at macro scale', 'A lean global network: regional, predictive and circular. Cost 35% lower, emissions 65% lower and delivery in under two weeks.']
+  ],
+  es: [
+    ['Punto de partida', 'Toda la producción está concentrada en China y llega por pocas rutas oceánicas largas a Brasil y Estados Unidos. Baja eficiencia y mucha dependencia.'],
+    ['Mapeando los cuellos de botella', 'Usamos datos en tiempo real para encontrar puertos congestionados y rutas con retrasos. Primer centro de consolidación en Singapur.'],
+    ['Consolidación de cargas', 'Menos barcos, más llenos. Agrupar cargas reduce viajes y baja el costo por unidad enviada.'],
+    ['Montaje cerca del cliente', 'Enviamos componentes y montamos el producto final cerca de donde se vende. Nace la primera fábrica de montaje en Manaos.'],
+    ['Norteamérica regionalizada', 'Una nueva planta en Monterrey abastece a Estados Unidos por tierra, sin depender del transporte oceánico largo.'],
+    ['Logística predictiva', 'La inteligencia artificial predice la demanda y anticipa los inventarios. Menos producto parado y menos envíos urgentes por avión.'],
+    ['Flota más limpia', 'Barcos con combustible de bajas emisiones y trenes eléctricos en las rutas terrestres reducen la huella de carbono.'],
+    ['Red multipolar', 'Tres polos regionales, Asia, las Américas y Europa, producen y distribuyen casi de forma independiente. Si un polo falla, los otros cubren.'],
+    ['Logística circular', 'Los aparatos usados vuelven por la misma red para reciclaje y reaprovechamiento de componentes, reduciendo la necesidad de materia prima nueva.'],
+    ['Eficiencia a macroescala', 'Red global ágil, regional, predictiva y circular. Costo 35% menor, emisiones 65% menores y entrega en menos de dos semanas.']
+  ]
+};
+
+let L = 0; // índice do idioma atual
+try {
+  const salvo = new URLSearchParams(location.search).get('lang') || localStorage.getItem('idioma');
+  if (IDIOMAS.includes(salvo)) L = IDIOMAS.indexOf(salvo);
+} catch (e) {}
+const nm = n => Array.isArray(n) ? (n[L] || n[0]) : n;
+
+/* ============ LOCAIS ============ */
+const C = {
+  shenzhen:   { n: ['Shenzhen','Shenzhen','Shenzhen'], lat: 22.54, lng: 114.06 },
+  xangai:     { n: ['Xangai','Shanghai','Shanghái'], lat: 31.23, lng: 121.47 },
+  saopaulo:   { n: ['São Paulo','São Paulo','São Paulo'], lat: -23.55, lng: -46.63 },
+  manaus:     { n: ['Manaus','Manaus','Manaos'], lat: -3.12, lng: -60.02 },
+  losangeles: { n: ['Los Angeles','Los Angeles','Los Ángeles'], lat: 34.05, lng: -118.24 },
+  houston:    { n: ['Houston','Houston','Houston'], lat: 29.76, lng: -95.37 },
+  roterda:    { n: ['Roterdã','Rotterdam','Róterdam'], lat: 51.92, lng: 4.48 },
+  mumbai:     { n: ['Mumbai','Mumbai','Bombay'], lat: 19.07, lng: 72.88 },
+  mexico:     { n: ['Monterrey','Monterrey','Monterrey'], lat: 25.68, lng: -100.31 },
+  singapura:  { n: ['Singapura','Singapore','Singapur'], lat: 1.35, lng: 103.82 }
+};
+
+const CONTINENTES = [
+  { n: ['América do Norte','North America','Norteamérica'], lat: 47, lng: -100 },
+  { n: ['América do Sul','South America','Sudamérica'], lat: -14, lng: -60 },
+  { n: ['Europa','Europe','Europa'], lat: 52, lng: 15 },
+  { n: ['África','Africa','África'], lat: 5, lng: 20 },
+  { n: ['Ásia','Asia','Asia'], lat: 45, lng: 90 },
+  { n: ['Oceania','Oceania','Oceanía'], lat: -25, lng: 134 },
+  { n: ['Antártida','Antarctica','Antártida'], lat: -80, lng: 0 }
+];
+
+// Outras cidades (aparecem com um pouco de zoom)
+const CIDADES = [
+  { n: 'Rio de Janeiro', lat: -22.91, lng: -43.17 },
+  { n: 'Brasília', lat: -15.79, lng: -47.88 },
+  { n: ['Nova York','New York','Nueva York'], lat: 40.71, lng: -74.01 },
+  { n: ['Cidade do México','Mexico City','Ciudad de México'], lat: 19.43, lng: -99.13 },
+  { n: 'Buenos Aires', lat: -34.60, lng: -58.38 },
+  { n: ['Londres','London','Londres'], lat: 51.51, lng: -0.13 },
+  { n: 'Paris', lat: 48.86, lng: 2.35 },
+  { n: ['Moscou','Moscow','Moscú'], lat: 55.76, lng: 37.62 },
+  { n: ['Cairo','Cairo','El Cairo'], lat: 30.04, lng: 31.24 },
+  { n: 'Lagos', lat: 6.52, lng: 3.38 },
+  { n: ['Joanesburgo','Johannesburg','Johannesburgo'], lat: -26.20, lng: 28.05 },
+  { n: 'Dubai', lat: 25.20, lng: 55.27 },
+  { n: ['Pequim','Beijing','Pekín'], lat: 39.90, lng: 116.41 },
+  { n: ['Tóquio','Tokyo','Tokio'], lat: 35.68, lng: 139.69 },
+  { n: ['Sydney','Sydney','Sídney'], lat: -33.87, lng: 151.21 }
+];
+
+// Estados / províncias (aparecem só com bastante zoom)
+const ESTADOS = [
+  // Brasil
+  { n: 'Acre', lat: -9.0, lng: -70.5 }, { n: 'Alagoas', lat: -9.6, lng: -36.6 }, { n: 'Amapá', lat: 1.4, lng: -51.8 },
+  { n: 'Amazonas', lat: -4.0, lng: -64.5 }, { n: 'Bahia', lat: -12.5, lng: -41.7 }, { n: 'Ceará', lat: -5.2, lng: -39.5 },
+  { n: 'Distrito Federal', lat: -15.8, lng: -47.8 }, { n: 'Espírito Santo', lat: -19.6, lng: -40.6 }, { n: 'Goiás', lat: -15.9, lng: -49.8 },
+  { n: 'Maranhão', lat: -5.0, lng: -45.3 }, { n: 'Mato Grosso', lat: -12.9, lng: -55.9 }, { n: 'Mato Grosso do Sul', lat: -20.5, lng: -54.5 },
+  { n: 'Minas Gerais', lat: -18.5, lng: -44.6 }, { n: 'Pará', lat: -3.8, lng: -52.5 }, { n: 'Paraíba', lat: -7.1, lng: -36.8 },
+  { n: 'Paraná', lat: -24.6, lng: -51.6 }, { n: 'Pernambuco', lat: -8.4, lng: -37.9 }, { n: 'Piauí', lat: -7.7, lng: -42.7 },
+  { n: 'Rio de Janeiro', lat: -22.2, lng: -42.7 }, { n: 'Rio Grande do Norte', lat: -5.8, lng: -36.6 }, { n: 'Rio Grande do Sul', lat: -29.7, lng: -53.5 },
+  { n: 'Rondônia', lat: -10.9, lng: -62.8 }, { n: 'Roraima', lat: 2.0, lng: -61.4 }, { n: 'Santa Catarina', lat: -27.3, lng: -50.5 },
+  { n: 'São Paulo', lat: -22.3, lng: -48.7 }, { n: 'Sergipe', lat: -10.6, lng: -37.4 }, { n: 'Tocantins', lat: -10.2, lng: -48.3 },
+  // Estados Unidos
+  { n: ['Texas','Texas','Texas'], lat: 31.5, lng: -99.3 }, { n: ['Califórnia','California','California'], lat: 37.2, lng: -119.7 },
+  { n: ['Flórida','Florida','Florida'], lat: 28.6, lng: -82.4 }, { n: ['Nova York','New York','Nueva York'], lat: 42.9, lng: -75.5 },
+  { n: ['Alasca','Alaska','Alaska'], lat: 64.0, lng: -152.0 }, { n: 'Arizona', lat: 34.3, lng: -111.7 },
+  { n: 'Colorado', lat: 39.0, lng: -105.5 }, { n: 'Washington', lat: 47.4, lng: -120.5 },
+  // México
+  { n: 'Nuevo León', lat: 25.6, lng: -99.9 }, { n: 'Chihuahua', lat: 28.8, lng: -106.4 }, { n: 'Jalisco', lat: 20.6, lng: -103.6 },
+  // Ásia
+  { n: 'Guangdong', lat: 23.4, lng: 113.4 }, { n: 'Maharashtra', lat: 19.5, lng: 76.0 }
+];
+
+// Lista única de rótulos
+const TODOS = [
+  ...CONTINENTES.map(d => ({ ...d, tipo: 'continente' })),
+  ...Object.values(C).map(d => ({ n: d.n, lat: d.lat, lng: d.lng, tipo: 'hub' })),
+  ...CIDADES.map(d => ({ ...d, tipo: 'cidade' })),
+  ...ESTADOS.map(d => ({ ...d, tipo: 'estado' }))
+];
+
+/* ============ DADOS DOS ANOS (português) ============ */
 const ANOS = [
   { ano: 2026, titulo: 'Ponto de partida', texto: 'Toda a produção está concentrada na China e segue por poucas rotas oceânicas longas até Brasil e Estados Unidos. Eficiência baixa e muita dependência.', custo: '100%', co2: '100%', prazo: '45 dias',
     rotas: [['shenzhen','losangeles',1.0], ['shenzhen','saopaulo',0.8], ['xangai','roterda',0.8]] },
@@ -83,26 +211,57 @@ const ANOS = [
   { ano: 2035, titulo: 'Eficiência em macro escala', texto: 'Rede global enxuta, regional, preditiva e circular. Custo 35% menor, emissões 65% menores e entrega em menos de duas semanas.', custo: '65%', co2: '35%', prazo: '10 dias',
     rotas: [['singapura','mumbai',0.9], ['mumbai','roterda',0.9], ['manaus','saopaulo',1.0], ['mexico','houston',1.0], ['mexico','losangeles',1.0], ['saopaulo','houston',0.7], ['houston','mexico',0.6], ['roterda','mumbai',0.6]] }
 ];
-  window.GLOBO_IA_DADOS = ANOS;
+window.GLOBO_IA_DADOS = ANOS;
+
+/* ============ GLOBO ============ */
 const globo = Globe()(document.getElementById('globo'))
   .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg')
   .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
   .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
   .pointLat(d => d.lat).pointLng(d => d.lng)
   .pointColor(() => '#ffd166').pointAltitude(0.02).pointRadius(0.45)
-  .pointLabel(d => d.nome)
+  .pointLabel(d => nm(d.n))
   .arcStartLat(d => C[d.o].lat).arcStartLng(d => C[d.o].lng)
   .arcEndLat(d => C[d.d].lat).arcEndLng(d => C[d.d].lng)
   .arcColor(() => ['#4dffb8', '#1e90ff'])
   .arcStroke(d => d.esp * 0.8)
   .arcDashLength(0.4).arcDashGap(0.2).arcDashAnimateTime(1800)
-  .arcAltitudeAutoScale(0.4);
+  .arcAltitudeAutoScale(0.4)
+  // Rótulos de texto (HTML, aceitam acentos)
+  .htmlLat(d => d.lat).htmlLng(d => d.lng).htmlAltitude(0.01)
+  .htmlElement(d => {
+    const el = document.createElement('div');
+    el.className = 'rot ' + d.tipo;
+    el.textContent = nm(d.n);
+    return el;
+  });
 
 globo.pointsData(Object.values(C));
 globo.controls().autoRotate = true;
 globo.controls().autoRotateSpeed = 0.5;
 globo.pointOfView({ lat: 10, lng: -20, altitude: 2.4 });
 
+// Quais rótulos aparecem em cada nível de zoom
+let ultimaQtd = -1;
+function rotulosVisiveis() {
+  const alt = globo.pointOfView().altitude;
+  return TODOS.filter(d =>
+    d.tipo === 'continente' ? alt > 1.6 :
+    d.tipo === 'hub'        ? true :
+    d.tipo === 'cidade'     ? alt < 1.6 :
+                              alt < 0.9);   // estado
+}
+function atualizarRotulos(forcar) {
+  const lista = rotulosVisiveis();
+  if (!forcar && lista.length === ultimaQtd) return;
+  ultimaQtd = lista.length;
+  globo.htmlElementsData([]);       // limpa para recriar já no idioma certo
+  globo.htmlElementsData(lista);
+}
+globo.controls().addEventListener('change', () => atualizarRotulos(false));
+atualizarRotulos(true);
+
+/* ============ PAINEL ============ */
 let indice = 0;
 let tocando = true;
 let relogio = null;
@@ -110,16 +269,34 @@ let relogio = null;
 function mostrar(i) {
   indice = i;
   const a = ANOS[i];
+  const u = UI[IDIOMAS[L]];
+  const [titulo, texto] = L === 0 ? [a.titulo, a.texto] : TR[IDIOMAS[L]][i];
   document.getElementById('ano').textContent = a.ano;
-  document.getElementById('titulo').textContent = a.titulo;
-  document.getElementById('texto').textContent = a.texto;
+  document.getElementById('titulo').textContent = titulo;
+  document.getElementById('texto').textContent = texto;
   document.getElementById('m-custo').textContent = a.custo;
   document.getElementById('m-co2').textContent = a.co2;
-  document.getElementById('m-prazo').textContent = a.prazo;
+  document.getElementById('m-prazo').textContent = parseInt(a.prazo) + ' ' + u.dias;
   document.getElementById('linha').value = i;
   document.getElementById('rotulo').textContent = a.ano;
-  document.getElementById('detalhes').href = 'detalhe.html?ano=' + a.ano;
+  document.getElementById('detalhes').href = 'detalhe.html?ano=' + a.ano + '&lang=' + IDIOMAS[L];
   globo.arcsData(a.rotas.map(r => ({ o: r[0], d: r[1], esp: r[2] })));
+}
+
+function aplicarIdioma() {
+  const cod = IDIOMAS[L];
+  const u = UI[cod];
+  document.documentElement.lang = HTML_LANG[cod];
+  document.title = u.titulo;
+  document.getElementById('l-custo').textContent = u.custo;
+  document.getElementById('l-co2').textContent = u.co2;
+  document.getElementById('l-prazo').textContent = u.prazo;
+  document.getElementById('detalhes').textContent = u.mais;
+  document.getElementById('btn').textContent = tocando ? u.pausar : u.continuar;
+  document.querySelectorAll('#idiomas button').forEach(b => b.classList.toggle('ativo', b.dataset.lang === cod));
+  window.GLOBO_IDIOMA = cod;
+  mostrar(indice);
+  atualizarRotulos(true);
 }
 
 function iniciar() {
@@ -131,7 +308,7 @@ function iniciar() {
 
 document.getElementById('btn').onclick = () => {
   tocando = !tocando;
-  document.getElementById('btn').textContent = tocando ? 'Pausar' : 'Continuar';
+  document.getElementById('btn').textContent = tocando ? UI[IDIOMAS[L]].pausar : UI[IDIOMAS[L]].continuar;
   if (tocando) { iniciar(); } else { clearInterval(relogio); }
 };
 
@@ -140,10 +317,19 @@ document.getElementById('linha').oninput = (e) => {
   if (tocando) { iniciar(); }
 };
 
+document.querySelectorAll('#idiomas button').forEach(b => {
+  b.onclick = () => {
+    L = IDIOMAS.indexOf(b.dataset.lang);
+    try { localStorage.setItem('idioma', b.dataset.lang); } catch (e) {}
+    aplicarIdioma();
+  };
+});
+
 // Se voltar da página de detalhe, começa no ano que a pessoa estava vendo
 const anoUrl = parseInt(new URLSearchParams(location.search).get('ano'));
 const inicio = ANOS.findIndex(a => a.ano === anoUrl);
-mostrar(inicio >= 0 ? inicio : 0);
+indice = inicio >= 0 ? inicio : 0;
+aplicarIdioma();
 iniciar();
 </script>
 <script src="ia.js"></script>
